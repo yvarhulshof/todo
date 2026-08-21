@@ -1,0 +1,11 @@
+{
+  "name": "todo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first todo app. No backend, no accounts, no third-party requests.",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "serve": "node scripts/serve.js"
+  }
+}
