@@ -405,7 +405,7 @@ function storageMenu() {
 
       if (!supportsFileSystem) {
         rows.push(el('p', { class: 'dialog__desc' }, [
-          'This browser cannot write to a file directly. Use Edge or Chrome for file-backed saving, or export a copy regularly.',
+          'This browser has not exposed the File System Access API needed for file-backed saving. Most Chromium-based browsers support it — Chrome, Edge, Brave, Opera, Vivaldi — while Firefox and Safari do not. Export a copy regularly as a backup either way.',
         ]));
       }
 
