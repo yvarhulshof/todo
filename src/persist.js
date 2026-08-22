@@ -22,6 +22,13 @@ const WRITE_DEBOUNCE_MS = 500;
 export const supportsFileSystem =
   typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function';
 
+// navigator.brave is Brave's own, non-spoofable feature-detection hook (see
+// https://github.com/brave/brave-browser/wiki/Detecting-Brave). Brave hides
+// its name from the user-agent string on purpose, so this is the only clean
+// way to tailor the fallback copy for it without sniffing the UA.
+export const isBrave =
+  typeof navigator !== 'undefined' && Boolean(navigator.brave);
+
 // ------------------------------------------------------------ localStorage
 
 function safeLocalStorage() {

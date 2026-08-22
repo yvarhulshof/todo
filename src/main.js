@@ -1,6 +1,6 @@
 import { el, icon, clear, $ } from './dom.js';
 import { Store } from './store.js';
-import { Persistence, exportBlob, parseImport, supportsFileSystem, listSnapshots } from './persist.js';
+import { Persistence, exportBlob, parseImport, supportsFileSystem, isBrave, listSnapshots } from './persist.js';
 import {
   addTodo, updateTodo, deleteTodo, setCompleted, moveTodo,
   addList, renameList, deleteList, addLabel, updateLabel, deleteLabel,
@@ -403,7 +403,11 @@ function storageMenu() {
         ]),
       );
 
-      if (!supportsFileSystem) {
+      if (!supportsFileSystem && isBrave) {
+        rows.push(el('p', { class: 'dialog__desc' }, [
+          'Brave has not exposed the File System Access API in this window. Brave ships the same API as Chrome and Edge, but disables it in Private and Tor windows, and it can be blocked by a per-site permission, a Shields setting, or an out-of-date version. Try a normal (non-Private) window, check brave://settings/content and brave://flags for a file-system permission or flag, and update Brave, then reload this page. Export a copy regularly as a backup either way.',
+        ]));
+      } else if (!supportsFileSystem) {
         rows.push(el('p', { class: 'dialog__desc' }, [
           'This browser has not exposed the File System Access API needed for file-backed saving. Most Chromium-based browsers support it — Chrome, Edge, Brave, Opera, Vivaldi — while Firefox and Safari do not. Export a copy regularly as a backup either way.',
         ]));
