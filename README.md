@@ -133,6 +133,20 @@ and exceptions. The data model leaves room for both.
 
 ---
 
+## Filing bugs and requests
+
+Use [GitHub Issues](../../issues/new/choose) — there are forms for bugs and for
+feature requests. They exist so an issue carries enough detail to act on without
+a follow-up conversation.
+
+Labels live in [.github/labels.json](.github/labels.json) and are synced by a
+workflow, so they can be reviewed like any other change.
+
+[CLAUDE.md](CLAUDE.md) holds the commands, the architecture map and the design
+invariants — the things that are deliberate and should not be changed by
+accident. Read it before making changes; read [SPEC.md](SPEC.md) for why any of
+them were decided that way.
+
 ## Tests
 
 ```bash

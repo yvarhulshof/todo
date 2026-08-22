@@ -1,0 +1,30 @@
+name: Sync labels
+
+# Labels are version-controlled in .github/labels.json so they can be recreated
+# and reviewed like anything else. jq and gh are preinstalled on the runner.
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/labels.json', '.github/workflows/labels.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          jq -c '.[]' .github/labels.json | while read -r label; do
+            name=$(jq -r '.name'        <<<"$label")
+            color=$(jq -r '.color'      <<<"$label")
+            desc=$(jq -r '.description' <<<"$label")
+            # --force updates an existing label instead of failing.
+            gh label create "$name" --color "$color" --description "$desc" --force
+          done

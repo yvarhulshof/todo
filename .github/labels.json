@@ -1,0 +1,7 @@
+[
+  { "name": "bug",       "color": "d73a4a", "description": "Something behaves wrong" },
+  { "name": "feature",   "color": "1d76db", "description": "New behaviour or a change to existing behaviour" },
+  { "name": "v2",        "color": "5b5bd6", "description": "Deferred on purpose — see SPEC.md" },
+  { "name": "by-design", "color": "6a7078", "description": "Current behaviour is deliberate; see CLAUDE.md invariants" },
+  { "name": "data-loss", "color": "b60205", "description": "Lost or corrupted todos — jumps the queue" }
+]

@@ -1,0 +1,54 @@
+name: Feature or change
+description: Something should work differently
+labels: ['feature']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please skim [SPEC.md](../blob/main/SPEC.md) first. Some things are
+        deliberately absent (recurring todos, subtasks) or deliberately limited
+        (dates only parse at the end of quick-add input) — those are decisions
+        with reasoning behind them, and reopening one is fine as long as it is
+        deliberate.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is annoying you
+      description: The problem, not the solution. It often has a cheaper fix than the one you had in mind.
+      placeholder: I can't tell which todos I added today versus last month.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you think should happen
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Quick add / parsing
+        - Lists
+        - Labels
+        - Due dates and smart views
+        - Ordering, grouping, sorting
+        - Completed and archive
+        - Keyboard and accessibility
+        - Storage, sync and backup
+        - Visual design
+        - Something else
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before filing
+      options:
+        - label: I checked SPEC.md and this isn't already deferred on purpose
+          required: false
+        - label: This would change one of the invariants in CLAUDE.md
+          required: false
