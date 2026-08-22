@@ -1,0 +1,84 @@
+name: Bug
+description: Something behaves wrong
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in what you can. The fields below are the ones that usually decide
+        whether a fix can start immediately or needs a conversation first.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      placeholder: Dragging a todo onto the Work list moved it, but the count in the sidebar stayed the same.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Rough is fine. "Happens every time I…" is more useful than nothing.
+      placeholder: |
+        1. Open the Inbox list
+        2. Drag the second todo onto "Work" in the sidebar
+        3. Look at the count next to Work
+
+  - type: dropdown
+    id: view
+    attributes:
+      label: Where
+      description: Which view were you in?
+      options:
+        - All
+        - A list
+        - Today / Upcoming / Overdue
+        - A label
+        - Completed section
+        - Anywhere / not view-specific
+        - Not sure
+
+  - type: dropdown
+    id: storage
+    attributes:
+      label: Storage mode
+      description: The indicator at the bottom of the sidebar.
+      options:
+        - Saved to a file
+        - This browser only
+        - Not sure
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Edge
+        - Chrome
+        - Firefox
+        - Safari
+        - Other
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: F12 → Console. Paste anything red. Leave blank if there is nothing.
+      render: text
+
+  - type: checkboxes
+    id: data
+    attributes:
+      label: Data loss
+      options:
+        - label: This bug lost or corrupted todos
+          required: false
