@@ -166,6 +166,33 @@ test('moving between lists keeps a sane order in the destination', () => {
   assert.deepEqual(inWork, ['A', 'W1']);
 });
 
+test('moveTodo adopts the labelId of the row it is dropped onto', () => {
+  const { data, inbox } = seed();
+  const urgent = addLabel(data, 'urgent');
+  const a = addTodo(data, { title: 'A', listId: inbox });
+  const u1 = addTodo(data, { title: 'U1', listId: inbox, labelId: urgent.id });
+  moveTodo(data, a.id, { beforeId: u1.id, orderedIds: [u1.id], labelId: urgent.id });
+  assert.equal(a.labelId, urgent.id);
+});
+
+test('moveTodo without labelId in the patch leaves the label untouched', () => {
+  const { data, inbox } = seed();
+  const urgent = addLabel(data, 'urgent');
+  const a = addTodo(data, { title: 'A', listId: inbox, labelId: urgent.id });
+  const b = addTodo(data, { title: 'B', listId: inbox });
+  moveTodo(data, a.id, { beforeId: b.id, orderedIds: [b.id] });
+  assert.equal(a.labelId, urgent.id);
+});
+
+test('moveTodo can adopt "no label" explicitly', () => {
+  const { data, inbox } = seed();
+  const urgent = addLabel(data, 'urgent');
+  const a = addTodo(data, { title: 'A', listId: inbox, labelId: urgent.id });
+  const b = addTodo(data, { title: 'B', listId: inbox });
+  moveTodo(data, a.id, { beforeId: b.id, orderedIds: [b.id], labelId: null });
+  assert.equal(a.labelId, null);
+});
+
 // ------------------------------------------------------------------- todos
 
 test('a todo cannot be created or renamed to an empty title', () => {
