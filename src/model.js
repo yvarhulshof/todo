@@ -138,12 +138,16 @@ export function setCompleted(data, id, completed) {
 /**
  * Move `id` so it sits immediately before `beforeId` within `orderedIds`
  * (the ids as currently displayed). Pass `beforeId: null` to move to the end.
- * `listId` moves it between lists at the same time.
+ * `listId` moves it between lists at the same time. `labelId` relabels it at
+ * the same time (pass explicitly, including `null`, to adopt "no label" —
+ * omit it entirely to leave the label untouched).
  */
-export function moveTodo(data, id, { beforeId = null, orderedIds = [], listId = null }) {
+export function moveTodo(data, id, opts = {}) {
+  const { beforeId = null, orderedIds = [], listId = null } = opts;
   const todo = data.todos.find((t) => t.id === id);
   if (!todo) return null;
   if (listId && listId !== todo.listId) todo.listId = listId;
+  if ('labelId' in opts) todo.labelId = opts.labelId;
 
   const others = orderedIds
     .filter((x) => x !== id)

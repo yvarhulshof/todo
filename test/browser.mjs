@@ -305,6 +305,15 @@ await page.waitForTimeout(200);
 const urgentGroup = await page.locator('.group').filter({ hasText: 'urgent' }).locator('.todo__title').allTextContents();
 check('drag onto group header relabels', urgentGroup.includes('Alpha'), JSON.stringify(urgentGroup));
 
+// --- drag onto a row inside a label section (not the header) also relabels
+await page.locator('.quickadd input').fill('Delta');
+await page.locator('.quickadd input').press('Enter');
+await page.waitForTimeout(150);
+await dragTodo('Delta', 'Alpha', { top: true });
+const urgentAfterRowDrop = await page.locator('.group').filter({ hasText: 'urgent' }).locator('.todo__title').allTextContents();
+check('drag onto a row inside a label section relabels', urgentAfterRowDrop.includes('Delta'),
+  JSON.stringify(urgentAfterRowDrop));
+
 // --- keyboard reorder (Alt+arrows) ---------------------------------------
 await page.locator('.seg').first().locator('button').first().click();
 await page.locator('.nav-item').first().click();

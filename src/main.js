@@ -99,7 +99,11 @@ const app = {
     const target = beforeId ? store.data.todos.find((t) => t.id === beforeId) : null;
     // Dropping onto a row in a different list adopts that list.
     const listId = target ? target.listId : null;
-    store.commit((d) => moveTodo(d, draggedId, { beforeId, orderedIds, listId }), {
+    const patch = { beforeId, orderedIds, listId };
+    // In the label-grouped view, dropping onto a row also adopts that row's
+    // label — the whole section is the relabel target, not just its header.
+    if (target && selection.options.group === 'label') patch.labelId = target.labelId;
+    store.commit((d) => moveTodo(d, draggedId, patch), {
       undoLabel: 'Move',
     });
   },
