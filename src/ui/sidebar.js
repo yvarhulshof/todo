@@ -135,22 +135,36 @@ const STATUS_TEXT = {
   saved: (name) => `Saved to ${name}`,
   saving: (name) => `Saving to ${name}…`,
   error: () => 'Save failed',
-  'cache-only': () => 'This browser only',
+  'cache-only': (name, pending) => (pending ? `Reconnect to ${name}` : 'This browser only'),
   idle: () => 'Starting…',
 };
+
+/**
+ * Pure so it can be unit tested without a DOM: `pendingHandle` means a file
+ * was attached in a previous session but the browser dropped permission when
+ * the tab closed, and a fresh click is enough to get it back.
+ */
+export function saveStatusInfo({ status, fileName, pendingHandle, error }) {
+  const pending = Boolean(pendingHandle);
+  const name = fileName || 'file';
+  const text = (STATUS_TEXT[status] || STATUS_TEXT.idle)(name, pending);
+
+  const title =
+    status === 'cache-only'
+      ? pending
+        ? `The browser dropped its permission to ${name} when the tab closed. Click to reconnect.`
+        : 'Your todos live only in this browser. Clearing site data would lose them. Click to attach a file.'
+      : status === 'error'
+        ? error || 'Save failed'
+        : `Every change is written straight to ${name}.`;
+
+  return { text, title, pending };
+}
 
 export function renderSaveStatus(container, app) {
   clear(container);
   const p = app.persistence;
-  const name = p.fileName || 'file';
-  const text = (STATUS_TEXT[p.status] || STATUS_TEXT.idle)(name);
-
-  const title =
-    p.status === 'cache-only'
-      ? 'Your todos live only in this browser. Clearing site data would lose them. Click to attach a file.'
-      : p.status === 'error'
-        ? p.error || 'Save failed'
-        : `Every change is written straight to ${name}.`;
+  const { text, title, pending } = saveStatusInfo(p);
 
   container.append(
     el('button', {
@@ -158,7 +172,7 @@ export function renderSaveStatus(container, app) {
       type: 'button',
       dataset: { status: p.status },
       title,
-      onclick: () => app.openStorageMenu(),
+      onclick: () => (pending ? app.reconnectFile() : app.openStorageMenu()),
     }, [
       el('span', { class: 'save-status__dot' }),
       el('span', { class: 'save-status__text', text }),

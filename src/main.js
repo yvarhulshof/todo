@@ -216,6 +216,20 @@ const app = {
 
   // --- storage -------------------------------------------------------
   openStorageMenu: () => storageMenu(),
+
+  async reconnectFile() {
+    const name = persistence.pendingHandle?.name;
+    const restored = await persistence.reconnect();
+    if (restored) {
+      store.replace(restored);
+      showToast(`Reconnected to ${persistence.fileName}`);
+    } else {
+      showToast(`Could not reconnect to ${name || 'the file'}.`, {
+        actionLabel: 'Choose file',
+        onAction: () => storageMenu(),
+      });
+    }
+  },
 };
 
 function truncate(text, max = 42) {
@@ -711,7 +725,13 @@ setInterval(() => {
 applyTheme();
 render();
 
-if (!persistence.fileBacked && supportsFileSystem && store.data.todos.length === 0) {
+if (persistence.pendingHandle) {
+  showToast(`Reconnect to ${persistence.pendingHandle.name} to resume saving there.`, {
+    actionLabel: 'Reconnect',
+    onAction: () => app.reconnectFile(),
+    duration: 12000,
+  });
+} else if (!persistence.fileBacked && supportsFileSystem && store.data.todos.length === 0) {
   showToast('Your todos live in this browser only. Attach a file to keep them safe.', {
     actionLabel: 'Set up',
     onAction: () => storageMenu(),

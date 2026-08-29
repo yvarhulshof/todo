@@ -9,6 +9,7 @@ import {
 import { parseQuickAdd } from '../src/quickadd.js';
 import { selectView, counts, canReorder, getOptions } from '../src/query.js';
 import { addDays, formatDue, daysFromToday, isValidISODate, nextWeekday } from '../src/dates.js';
+import { saveStatusInfo } from '../src/ui/sidebar.js';
 
 const NOW = '2026-08-21'; // a Friday
 
@@ -416,4 +417,34 @@ test('deleteTodo removes exactly one todo', () => {
   assert.equal(deleteTodo(data, a.id), true);
   assert.equal(deleteTodo(data, 'nope'), false);
   assert.deepEqual(data.todos.map((t) => t.title), ['B']);
+});
+
+// --- save status indicator --------------------------------------------
+// Closing a tab drops File System Access permission in most browsers, even
+// though the handle itself is still remembered in IndexedDB. That state
+// (persist.js: `pendingHandle`) must read differently from "never attached a
+// file at all" so the one-click reconnect is discoverable.
+
+test('save status: never attached a file reads as cache-only, no reconnect', () => {
+  const info = saveStatusInfo({ status: 'cache-only', fileName: null, pendingHandle: null });
+  assert.equal(info.text, 'This browser only');
+  assert.equal(info.pending, false);
+  assert.match(info.title, /attach a file/);
+});
+
+test('save status: dropped permission offers a one-click reconnect', () => {
+  const info = saveStatusInfo({
+    status: 'cache-only',
+    fileName: 'todo-data.json',
+    pendingHandle: { name: 'todo-data.json' },
+  });
+  assert.equal(info.text, 'Reconnect to todo-data.json');
+  assert.equal(info.pending, true);
+  assert.match(info.title, /reconnect/i);
+});
+
+test('save status: connected file never shows a reconnect prompt', () => {
+  const info = saveStatusInfo({ status: 'saved', fileName: 'todo-data.json', pendingHandle: null });
+  assert.equal(info.text, 'Saved to todo-data.json');
+  assert.equal(info.pending, false);
 });
