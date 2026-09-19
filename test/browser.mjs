@@ -314,6 +314,67 @@ const urgentAfterRowDrop = await page.locator('.group').filter({ hasText: 'urgen
 check('drag onto a row inside a label section relabels', urgentAfterRowDrop.includes('Delta'),
   JSON.stringify(urgentAfterRowDrop));
 
+// --- drag from a smart view (not reorderable) still moves the todo --------
+// The grip hides in a date-sorted view (see 'drag handle hidden in smart
+// view'), but the row itself must stay draggable so it can still be moved to
+// a different list or label from Today/Upcoming/Overdue.
+await page.locator('.seg').first().locator('button').first().click(); // flat
+await page.waitForTimeout(120);
+await page.locator('.quickadd input').fill('Echo today');
+await page.locator('.quickadd input').press('Enter');
+await page.waitForTimeout(150);
+
+await page.locator('.nav-item').nth(1).click(); // Today
+await page.waitForTimeout(150);
+
+const echoDraggable = await page.evaluate(() => {
+  const row = [...document.querySelectorAll('.todo[data-id]')]
+    .find((r) => r.querySelector('.todo__title')?.textContent === 'Echo');
+  return row?.draggable;
+});
+check('row stays draggable in a smart view', echoDraggable === true, String(echoDraggable));
+
+await page.evaluate(() => {
+  const row = [...document.querySelectorAll('.todo[data-id]')]
+    .find((r) => r.querySelector('.todo__title').textContent === 'Echo');
+  const target = [...document.querySelectorAll('.nav-item__label')]
+    .find((n) => n.textContent === 'Work').closest('.nav-item');
+  const dt = new DataTransfer();
+  row.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
+  target.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  target.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  row.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles: true }));
+});
+await page.waitForTimeout(200);
+await page.locator('.nav-item__label', { hasText: 'Work' }).click();
+await page.waitForTimeout(180);
+const workTitlesFromToday = await page.locator('.todo-list .todo__title').allTextContents();
+check('drag from Today view onto sidebar list moves it',
+  workTitlesFromToday.includes('Echo'), JSON.stringify(workTitlesFromToday));
+
+// Relabelling by dropping on a group header from a smart view.
+await page.locator('.nav-item').nth(1).click(); // Today
+await page.waitForTimeout(150);
+await page.locator('.seg').first().locator('button').nth(1).click(); // group by label
+await page.waitForTimeout(180);
+
+await page.evaluate(() => {
+  const row = [...document.querySelectorAll('.todo[data-id]')]
+    .find((r) => r.querySelector('.todo__title').textContent === 'Echo');
+  const group = [...document.querySelectorAll('.group')]
+    .find((g) => g.querySelector('.group__head')?.textContent.includes('urgent'));
+  const dt = new DataTransfer();
+  row.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
+  group.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  group.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  row.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles: true }));
+});
+await page.waitForTimeout(200);
+const urgentFromToday = await page.locator('.group').filter({ hasText: 'urgent' }).locator('.todo__title').allTextContents();
+check('drag onto a label group header from a smart view relabels',
+  urgentFromToday.includes('Echo'), JSON.stringify(urgentFromToday));
+await page.locator('.seg').first().locator('button').first().click(); // back to flat
+
 // --- keyboard reorder (Alt+arrows) ---------------------------------------
 await page.locator('.seg').first().locator('button').first().click();
 await page.locator('.nav-item').first().click();

@@ -183,7 +183,11 @@ function buildRow(app, todo, { nextId, reorderable, showListTag, showLabel = tru
   });
   row.addEventListener('dblclick', () => app.startEdit(todo.id));
 
-  makeDraggable(row, todo.id, reorderable);
+  // Reordering by hand only makes sense for manual, non-smart views (see
+  // `canReorder`), but the row itself must stay draggable everywhere open
+  // todos are shown — that's how a todo moves to a different list, label, or
+  // Today from views like Upcoming/Overdue where `reorderable` is false.
+  makeDraggable(row, todo.id, !completed);
   if (reorderable) {
     makeReorderTarget(row, todo.id, nextId, (draggedId, beforeId) =>
       app.reorder(draggedId, beforeId));
