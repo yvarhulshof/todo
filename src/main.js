@@ -16,7 +16,7 @@ import { renderList } from './ui/list.js';
 import { showToast } from './ui/toast.js';
 import {
   confirmDialog, promptDialog, deleteListDialog, labelDialog,
-  listSettingsDialog, labelSettingsDialog, openDialog,
+  listSettingsDialog, labelSettingsDialog, openDialog, disconnectedDialog,
 } from './ui/dialog.js';
 import { dragState } from './dnd.js';
 
@@ -730,10 +730,10 @@ applyTheme();
 render();
 
 if (persistence.pendingHandle) {
-  showToast(`Reconnect to ${persistence.pendingHandle.name} to resume saving there.`, {
-    actionLabel: 'Reconnect',
-    onAction: () => app.reconnectFile(),
-    duration: 12000,
+  // A corner indicator alone was easy to miss entirely, so a lost file
+  // connection interrupts with a centered dialog instead of just a toast.
+  disconnectedDialog(persistence.pendingHandle.name).then((reconnect) => {
+    if (reconnect) app.reconnectFile();
   });
 } else if (!persistence.fileBacked && supportsFileSystem && store.data.todos.length === 0) {
   showToast('Your todos live in this browser only. Attach a file to keep them safe.', {
