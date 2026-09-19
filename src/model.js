@@ -231,8 +231,22 @@ export function addLabel(data, name, colorId) {
   const existing = data.labels.find((l) => l.name.toLowerCase() === clean.toLowerCase());
   if (existing) return existing;
   const color = colorId || LABEL_COLORS[data.labels.length % LABEL_COLORS.length].id;
-  const label = { id: uid('b'), name: clean, color };
+  const max = data.labels.reduce((m, l) => Math.max(m, l.order), 0);
+  const label = { id: uid('b'), name: clean, color, order: max + ORDER_GAP };
   data.labels.push(label);
+  return label;
+}
+
+/** Reorder label groups themselves, mirroring `moveList`. */
+export function moveLabel(data, id, beforeId) {
+  const label = data.labels.find((l) => l.id === id);
+  if (!label) return null;
+  const others = [...data.labels].sort(byOrder).filter((l) => l.id !== id);
+  const idx = beforeId ? others.findIndex((l) => l.id === beforeId) : others.length;
+  const prev = idx > 0 ? others[idx - 1].order : null;
+  const next = idx >= 0 && idx < others.length ? others[idx].order : null;
+  label.order = orderBetween(prev, next);
+  if (needsNormalize(data.labels)) normalizeOrder(data.labels);
   return label;
 }
 
@@ -297,6 +311,9 @@ export function migrate(raw) {
     }));
 
   data.lists.forEach((l, i) => {
+    if (!Number.isFinite(l.order)) l.order = (i + 1) * ORDER_GAP;
+  });
+  data.labels.forEach((l, i) => {
     if (!Number.isFinite(l.order)) l.order = (i + 1) * ORDER_GAP;
   });
   return data;

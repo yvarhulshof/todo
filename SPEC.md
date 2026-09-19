@@ -52,9 +52,13 @@ same list. The rule:
 - **Manual order is the stored truth.** Grouping and sorting are *view modes* layered
   over it; switching view modes never mutates `order`.
 - **Grouped by label:** dragging *within* a group reorders. Dragging *across* groups
-  reassigns `labelId` — that's how you relabel, no menu needed.
+  reassigns `labelId` — that's how you relabel, no menu needed. The group headers
+  themselves can also be dragged to reorder the groups, using their own stored
+  `order` — independent of any todo's `order`.
 - **Sorted by due date:** drag-to-reorder is disabled, and the drag handle is hidden
-  rather than left there to fail silently. Cross-list drags still work.
+  rather than left there to fail silently. Cross-list drags still work. Switching a
+  view — including a smart view — to Manual sort re-enables dragging there, which
+  displays and stores a manual override order without ever touching `dueDate`.
 - Default view is manual order, ungrouped.
 
 ### 3.2 The two "Today"s
