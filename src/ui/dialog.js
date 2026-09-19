@@ -87,6 +87,24 @@ export function confirmDialog({ title, description, confirmLabel = 'Confirm', da
   return openDialog({ title, description, confirmLabel, danger, onSubmit: () => true });
 }
 
+/**
+ * Shown at startup when the browser dropped file permission on the last
+ * session's file. A corner indicator is easy to miss entirely, and silent
+ * data loss is the one thing the save status must never risk — so this one
+ * interrupts with a centered, modal dialog instead.
+ */
+export function disconnectedDialog(fileName) {
+  return openDialog({
+    title: `Disconnected from ${fileName}`,
+    description:
+      `The browser dropped its permission to save to ${fileName} when this tab last closed. ` +
+      'Your todos are safe in this browser, but changes will not reach the file until you reconnect.',
+    confirmLabel: 'Reconnect',
+    cancelLabel: 'Not now',
+    onSubmit: () => true,
+  });
+}
+
 export function promptDialog({ title, description, label, value = '', confirmLabel = 'Save', placeholder = '' }) {
   const input = el('input', { type: 'text', value, placeholder, required: true, maxLength: 200 });
   return openDialog({
