@@ -39,7 +39,6 @@ export function viewTitle(view, data) {
   }
 }
 
-/** Smart views are computed from dates, so manual ordering is meaningless. */
 export function isSmart(view) {
   return view.kind === 'smart';
 }
@@ -54,7 +53,7 @@ export function getOptions(data, view) {
 
 /** Dragging to reorder is only meaningful when manual order is what's shown. */
 export function canReorder(view, options) {
-  return !isSmart(view) && options.sort === 'manual';
+  return options.sort === 'manual';
 }
 
 /** The list a newly added todo lands in for this view. */
@@ -131,14 +130,15 @@ export function selectView(data, view, { search = '', now = today() } = {}) {
 
   let groups;
   if (options.group === 'label') {
+    const orderedLabels = [...data.labels].sort(byOrder);
     const byLabel = new Map();
-    for (const label of data.labels) byLabel.set(label.id, []);
+    for (const label of orderedLabels) byLabel.set(label.id, []);
     const unlabelled = [];
     for (const todo of open) {
       if (todo.labelId && byLabel.has(todo.labelId)) byLabel.get(todo.labelId).push(todo);
       else unlabelled.push(todo);
     }
-    groups = data.labels
+    groups = orderedLabels
       .map((label) => ({
         id: label.id,
         name: label.name,

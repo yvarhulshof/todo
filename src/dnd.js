@@ -1,13 +1,20 @@
 // Drag and drop, using native HTML5 DnD so it works without a library.
 //
-// Three kinds of drop target:
+// Four kinds of drop target:
 //   - another todo   -> reorder (and adopt that row's list/label context)
-//   - a group header -> reassign the label (this is the relabel gesture)
+//   - a group header -> reassign the label (this is the relabel gesture) OR,
+//                        when the drag started on another group header,
+//                        reorder the label groups themselves
 //   - a sidebar row  -> move between lists, or set a due date on a smart view
+//
+// A todo drag and a group-header drag are tracked separately (`todoId` vs.
+// `labelId`) so a group header can be both a relabel target for a dragged
+// todo and a reorder target for a dragged header without the two colliding.
 
-export const dragState = { todoId: null };
+export const dragState = { todoId: null, labelId: null };
 
 const TYPE = 'application/x-todo-id';
+const LABEL_TYPE = 'application/x-todo-label-id';
 
 function clearMarks() {
   document
@@ -68,6 +75,60 @@ export function makeReorderTarget(node, todoId, nextId, onDrop) {
     dragState.todoId = null;
     clearMarks();
     onDrop(dragged, above ? todoId : nextId);
+  });
+}
+
+/** A label group header, draggable to reorder the groups themselves. */
+export function makeGroupDraggable(node, labelId, enabled) {
+  if (!enabled) {
+    node.draggable = false;
+    return;
+  }
+  node.draggable = true;
+  node.addEventListener('dragstart', (event) => {
+    dragState.labelId = labelId;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData(LABEL_TYPE, labelId);
+    event.dataTransfer.setData('text/plain', labelId);
+    requestAnimationFrame(() => node.classList.add('is-dragging'));
+  });
+  node.addEventListener('dragend', () => {
+    dragState.labelId = null;
+    node.classList.remove('is-dragging');
+    clearMarks();
+  });
+}
+
+/**
+ * A group header as a reorder target for another group header.
+ * `onDrop(draggedLabelId, beforeLabelId)`, `beforeLabelId: null` means "at the end".
+ */
+export function makeGroupReorderTarget(node, labelId, nextLabelId, onDrop) {
+  node.addEventListener('dragover', (event) => {
+    if (!dragState.labelId || dragState.labelId === labelId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const rect = node.getBoundingClientRect();
+    const above = event.clientY < rect.top + rect.height / 2;
+    node.classList.toggle('is-drop-before', above);
+    node.classList.toggle('is-drop-after', !above);
+  });
+
+  node.addEventListener('dragleave', () => {
+    node.classList.remove('is-drop-before', 'is-drop-after');
+  });
+
+  node.addEventListener('drop', (event) => {
+    const dragged = dragState.labelId;
+    if (!dragged || dragged === labelId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = node.getBoundingClientRect();
+    const above = event.clientY < rect.top + rect.height / 2;
+    // Clear the flag *before* committing, same reasoning as makeReorderTarget.
+    dragState.labelId = null;
+    clearMarks();
+    onDrop(dragged, above ? labelId : nextLabelId);
   });
 }
 

@@ -49,11 +49,16 @@ corporate acceptable-use policy — it is the whole point, not a preference.
 from now with nothing installed. Dev-only tools are fine.
 
 **Manual order is the stored truth.** Grouping and sorting are view layers.
-Switching a view mode must never mutate `order`.
+Switching a view mode must never mutate `order`. Label groups have their own
+`order` field, reordered by dragging a group header, independent of todo order.
 
-**Date-sorted views cannot be reordered by hand.** The drag handle hides rather
-than failing silently. Dragging must *not* rewrite due dates — that was
-considered and rejected as too clever.
+**The drag handle hides only when a view is sorted by date, never by view
+kind.** Smart views (Today/Upcoming/Overdue) default to date sort, but — as of
+[#11](https://github.com/yvarhulshof/todo/issues/11) — switching *any* view,
+smart or not, to Manual enables drag-to-reorder there too, overriding the date
+order for display. Dragging must *not* rewrite due dates — that was
+considered and rejected as too clever, and still holds: manual order and due
+date are independent fields, and reordering never touches `dueDate`.
 
 **Quick-add only parses date tokens at the end of the input.** `Review deck fri`
 sets a date; `Book the friday room` stays intact. Parsing anywhere would be more
@@ -87,10 +92,10 @@ never make an existing user's file unreadable.
 
 Two bugs that already happened here, both easy to reintroduce:
 
-**Renders are suppressed while a drag is in flight** (the `dragState.todoId`
-guard in `main.js`) so the dragged node is not destroyed mid-drag. Drop handlers
-must therefore clear `dragState.todoId` *before* committing — `dragend` fires
-after the drop, too late.
+**Renders are suppressed while a drag is in flight** (the `dragState.todoId` /
+`dragState.labelId` guard in `main.js`) so the dragged node is not destroyed
+mid-drag. Drop handlers must therefore clear the relevant `dragState` flag
+*before* committing — `dragend` fires after the drop, too late.
 
 **Do not rebuild input elements on render.** The quick-add field and the search
 input are created once and updated in place. Rebuilding the topbar on every

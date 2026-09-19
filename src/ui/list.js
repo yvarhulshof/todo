@@ -2,7 +2,9 @@ import { el, icon, clear } from '../dom.js';
 import { labelHex } from '../model.js';
 import { formatDue, dueTone, today } from '../dates.js';
 import { canReorder, isSmart } from '../query.js';
-import { makeDraggable, makeReorderTarget, makeZoneTarget } from '../dnd.js';
+import {
+  makeDraggable, makeReorderTarget, makeZoneTarget, makeGroupDraggable, makeGroupReorderTarget,
+} from '../dnd.js';
 
 function labelChip(data, labelId) {
   const label = data.labels.find((l) => l.id === labelId);
@@ -246,13 +248,16 @@ export function renderList(container, app, selection) {
     return;
   }
 
-  for (const group of selection.groups) {
-    if (grouped && group.todos.length === 0 && group.id === null) continue;
+  selection.groups.forEach((group, i) => {
+    if (grouped && group.todos.length === 0 && group.id === null) return;
 
     const groupNode = el('div', { class: 'group' });
 
     if (grouped) {
       const head = el('div', { class: 'group__head' }, [
+        group.id !== null
+          ? el('span', { class: 'group__grip', 'aria-hidden': 'true' }, [icon('grip', { size: 14 })])
+          : null,
         group.color
           ? el('span', {
               class: 'label-chip__dot',
@@ -265,11 +270,20 @@ export function renderList(container, app, selection) {
       groupNode.append(head);
       // Dropping onto a group header is how you relabel without a menu.
       makeZoneTarget(groupNode, (draggedId) => app.setLabel(draggedId, group.id));
+
+      // The "No label" group is virtual — not draggable, not a reorder target.
+      if (group.id !== null) {
+        const nextGroup = selection.groups[i + 1];
+        const nextLabelId = nextGroup && nextGroup.id !== null ? nextGroup.id : null;
+        makeGroupDraggable(head, group.id, true);
+        makeGroupReorderTarget(head, group.id, nextLabelId, (draggedId, beforeId) =>
+          app.reorderLabel(draggedId, beforeId));
+      }
     }
 
     const ul = el('ul', { class: 'todo-list', role: 'list' });
-    group.todos.forEach((todo, i) => {
-      const nextId = group.todos[i + 1]?.id ?? null;
+    group.todos.forEach((todo, j) => {
+      const nextId = group.todos[j + 1]?.id ?? null;
       ul.append(buildRow(app, todo, { nextId, reorderable, showListTag, showLabel: !grouped }));
     });
 
@@ -283,7 +297,7 @@ export function renderList(container, app, selection) {
 
     groupNode.append(ul);
     container.append(groupNode);
-  }
+  });
 
   if (selection.openCount === 0 && ui.search) {
     container.append(emptyState(view, ui.search));

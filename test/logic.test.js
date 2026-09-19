@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   createInitialData, addTodo, updateTodo, deleteTodo, setCompleted, moveTodo,
-  addList, deleteList, addLabel, deleteLabel, orderBetween, normalizeOrder,
+  addList, deleteList, addLabel, deleteLabel, moveLabel, orderBetween, normalizeOrder,
   needsNormalize, byOrder, migrate, ORDER_GAP,
 } from '../src/model.js';
 import { parseQuickAdd } from '../src/quickadd.js';
@@ -272,6 +272,36 @@ test('adding a duplicate label returns the existing one', () => {
   assert.equal(data.labels.length, 1);
 });
 
+test('moveLabel reorders the label groups', () => {
+  const { data } = seed();
+  const a = addLabel(data, 'A');
+  const b = addLabel(data, 'B');
+  const c = addLabel(data, 'C');
+  moveLabel(data, c.id, a.id);
+  const order = [...data.labels].sort(byOrder).map((l) => l.name);
+  assert.deepEqual(order, ['C', 'A', 'B']);
+});
+
+test('moveLabel with beforeId null sends the label to the end', () => {
+  const { data } = seed();
+  const a = addLabel(data, 'A');
+  addLabel(data, 'B');
+  moveLabel(data, a.id, null);
+  const order = [...data.labels].sort(byOrder).map((l) => l.name);
+  assert.deepEqual(order, ['B', 'A']);
+});
+
+test('repeated label reorders between the same pair trigger renumbering', () => {
+  const { data } = seed();
+  const a = addLabel(data, 'A');
+  const b = addLabel(data, 'B');
+  const c = addLabel(data, 'C');
+  for (let i = 0; i < 60; i += 1) moveLabel(data, c.id, b.id);
+  assert.ok(!needsNormalize(data.labels));
+  const order = [...data.labels].sort(byOrder).map((l) => l.name);
+  assert.deepEqual(order, [a.name, c.name, b.name]);
+});
+
 // -------------------------------------------------------------------- views
 
 test('All shows todos from every list', () => {
@@ -302,7 +332,7 @@ test('Today includes overdue, Overdue excludes today, Upcoming is strictly futur
   assert.deepEqual(upcoming.open.map((t) => t.title), ['Soon']);
 });
 
-test('smart views sort by date and forbid manual reordering', () => {
+test('smart views default to date sort, which forbids manual reordering', () => {
   const view = { kind: 'smart', id: 'today' };
   const { data } = seed();
   const options = getOptions(data, view);
@@ -310,6 +340,24 @@ test('smart views sort by date and forbid manual reordering', () => {
   assert.equal(canReorder(view, options), false);
   assert.equal(canReorder({ kind: 'list', id: 'l1' }, { sort: 'manual' }), true);
   assert.equal(canReorder({ kind: 'list', id: 'l1' }, { sort: 'due' }), false);
+});
+
+test('a smart view switched to manual sort can be reordered, overriding date order', () => {
+  const view = { kind: 'smart', id: 'today' };
+  assert.equal(canReorder(view, { sort: 'manual' }), true);
+
+  const { data, inbox } = seed();
+  const early = addTodo(data, { title: 'Early', listId: inbox, dueDate: addDays(NOW, -1) });
+  const late = addTodo(data, { title: 'Late', listId: inbox, dueDate: NOW });
+  data.prefs.viewOptions['smart:today'] = { sort: 'manual' };
+
+  // Manually place the later-due todo first — moveTodo never touches dueDate.
+  moveTodo(data, late.id, { beforeId: early.id, orderedIds: [early.id, late.id] });
+  assert.equal(late.dueDate, NOW);
+  assert.equal(early.dueDate, addDays(NOW, -1));
+
+  const view2 = selectView(data, view, { now: NOW });
+  assert.deepEqual(view2.open.map((t) => t.title), ['Late', 'Early']);
 });
 
 test('date sort puts undated todos last without losing their manual order', () => {
@@ -337,6 +385,17 @@ test('grouping by label keeps empty groups as drop targets and puts No label las
   assert.deepEqual(view.groups[1].todos, []);
   assert.deepEqual(view.groups[2].todos.map((t) => t.title), ['B']);
   assert.ok(empty);
+});
+
+test('label groups render in the label order, not creation order', () => {
+  const { data, inbox } = seed();
+  const urgent = addLabel(data, 'urgent');
+  const someday = addLabel(data, 'someday');
+  moveLabel(data, someday.id, urgent.id); // drag "someday" above "urgent"
+  data.prefs.viewOptions[`list:${inbox}`] = { group: 'label' };
+
+  const view = selectView(data, { kind: 'list', id: inbox }, { now: NOW });
+  assert.deepEqual(view.groups.map((g) => g.name), ['someday', 'urgent', 'No label']);
 });
 
 test('search matches title and note, and applies inside every view', () => {
@@ -397,6 +456,17 @@ test('migrate drops junk rows instead of throwing', () => {
   });
   assert.deepEqual(data.todos.map((t) => t.title), ['Good']);
   assert.ok(Number.isFinite(data.lists[0].order));
+});
+
+test('migrate backfills order on labels from before label reordering existed', () => {
+  const data = migrate({
+    lists: [{ id: 'l1', name: 'Inbox', order: 1024 }],
+    labels: [{ id: 'b1', name: 'urgent', color: 'red' }, { id: 'b2', name: 'someday', color: 'blue' }],
+    todos: [],
+  });
+  assert.ok(Number.isFinite(data.labels[0].order));
+  assert.ok(Number.isFinite(data.labels[1].order));
+  assert.ok(data.labels[0].order < data.labels[1].order);
 });
 
 test('migrate rejects documents that are not todo files at all', () => {

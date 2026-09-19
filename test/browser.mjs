@@ -148,8 +148,8 @@ await todayNav.click();
 await page.waitForTimeout(150);
 check('Today view filters by date', (await page.locator('.todo').count()) >= 1);
 const manualBtn = page.locator('.seg').nth(1).locator('button').first();
-check('manual sort disabled in smart view', await manualBtn.isDisabled());
-check('drag handle hidden in smart view',
+check('manual sort is selectable in a smart view', await manualBtn.isDisabled() === false);
+check('drag handle hidden by default (smart views default to date sort)',
   await page.locator('.todo__grip').first().evaluate((n) => getComputedStyle(n).visibility) === 'hidden');
 
 // --- grouping
@@ -373,6 +373,126 @@ await page.waitForTimeout(200);
 const urgentFromToday = await page.locator('.group').filter({ hasText: 'urgent' }).locator('.todo__title').allTextContents();
 check('drag onto a label group header from a smart view relabels',
   urgentFromToday.includes('Echo'), JSON.stringify(urgentFromToday));
+await page.locator('.seg').first().locator('button').first().click(); // back to flat
+
+// --- manual sort in a smart view overrides date order ----------------------
+await page.evaluate(() => localStorage.clear());
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForSelector('.quickadd input');
+
+// Seeded so manual (creation) order already agrees with due-date order —
+// only the drag below should be able to produce a different result.
+await page.locator('.quickadd input').fill('Second today');
+await page.locator('.quickadd input').press('Enter');
+await page.waitForTimeout(120);
+await page.locator('.quickadd input').fill('First today');
+await page.locator('.quickadd input').press('Enter');
+await page.waitForTimeout(120);
+
+// Make "Second" overdue so it sorts first by due date too.
+await page.locator('.todo__title', { hasText: 'Second' }).click();
+await page.waitForSelector('.editor');
+await page.locator('.editor input[type=date]').fill('2020-01-01');
+await page.locator('.editor .btn--primary').click();
+await page.waitForTimeout(150);
+
+await page.locator('.nav-item').nth(1).click(); // Today
+await page.waitForTimeout(150);
+check('due-sorted Today puts the overdue item first',
+  JSON.stringify(await titles()) === '["Second","First"]', JSON.stringify(await titles()));
+
+const todayManualBtn = page.locator('.seg').nth(1).locator('button').first();
+await todayManualBtn.click(); // switch Today to Manual sort
+await page.waitForTimeout(150);
+check('drag handle appears once Today is switched to Manual',
+  await page.locator('.todo__grip').first().evaluate((n) => getComputedStyle(n).visibility) !== 'hidden');
+
+await dragTodo('First', 'Second', { top: true });
+check('dragging within Today overrides date order',
+  JSON.stringify(await titles()) === '["First","Second"]', JSON.stringify(await titles()));
+check('drag does not rewrite due dates',
+  (await page.locator('.due[data-tone="overdue"]').count()) === 1);
+
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForSelector('.todo');
+check('manual order in Today persists across reload',
+  JSON.stringify(await titles()) === '["First","Second"]', JSON.stringify(await titles()));
+
+// --- dragging a group header reorders the label groups ---------------------
+await page.evaluate(() => localStorage.clear());
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForSelector('.quickadd input');
+
+for (const name of ['urgent', 'someday']) {
+  await page.locator('.nav-section').nth(2).locator('.icon-btn').click();
+  await page.waitForSelector('dialog[open]');
+  await page.locator('dialog input').fill(name);
+  await page.locator('dialog .btn--primary').click();
+  await page.waitForTimeout(150);
+}
+
+await page.locator('.seg').first().locator('button').nth(1).click(); // group by label
+await page.waitForTimeout(180);
+const groupOrderBefore = await page.locator('.group__head').allTextContents();
+check('groups start in creation order',
+  groupOrderBefore[0].includes('urgent') && groupOrderBefore[1].includes('someday'),
+  JSON.stringify(groupOrderBefore));
+
+async function dragGroupHeader(fromText, toText, { top = true } = {}) {
+  await page.evaluate(({ fromText, toText, top }) => {
+    const heads = [...document.querySelectorAll('.group__head')];
+    const from = heads.find((h) => h.textContent.includes(fromText));
+    const to = heads.find((h) => h.textContent.includes(toText));
+    const dt = new DataTransfer();
+    from.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
+    const rect = to.getBoundingClientRect();
+    const clientY = top ? rect.top + 3 : rect.bottom - 3;
+    const opts = { dataTransfer: dt, bubbles: true, cancelable: true, clientY, clientX: rect.left + 40 };
+    to.dispatchEvent(new DragEvent('dragover', opts));
+    to.dispatchEvent(new DragEvent('drop', opts));
+    from.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles: true }));
+  }, { fromText, toText, top });
+  await page.waitForTimeout(150);
+}
+
+await dragGroupHeader('someday', 'urgent', { top: true });
+const groupOrderAfter = await page.locator('.group__head').allTextContents();
+check('dragging a group header reorders the label groups',
+  groupOrderAfter[0].includes('someday') && groupOrderAfter[1].includes('urgent'),
+  JSON.stringify(groupOrderAfter));
+
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForSelector('.group__head');
+const groupOrderReload = await page.locator('.group__head').allTextContents();
+check('label group order persists across reload',
+  groupOrderReload[0].includes('someday') && groupOrderReload[1].includes('urgent'),
+  JSON.stringify(groupOrderReload));
+
+// Dropping a todo onto a header must still relabel, not get mistaken for a
+// group-reorder drag (the two gestures share the same element).
+await page.locator('.quickadd input').fill('Foxtrot');
+await page.locator('.quickadd input').press('Enter');
+await page.waitForTimeout(150);
+await page.evaluate(() => {
+  const row = [...document.querySelectorAll('.todo[data-id]')]
+    .find((r) => r.querySelector('.todo__title')?.textContent === 'Foxtrot');
+  const group = [...document.querySelectorAll('.group')]
+    .find((g) => g.querySelector('.group__head')?.textContent.includes('urgent'));
+  const dt = new DataTransfer();
+  row.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
+  group.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  group.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+  row.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles: true }));
+});
+await page.waitForTimeout(200);
+const urgentAfterHeaderDrop = await page.locator('.group').filter({ hasText: 'urgent' }).locator('.todo__title').allTextContents();
+check('dropping a todo on a group header still relabels after adding reorder',
+  urgentAfterHeaderDrop.includes('Foxtrot'), JSON.stringify(urgentAfterHeaderDrop));
+
+// Leave at least two todos behind for the keyboard-reorder check below.
+await page.locator('.quickadd input').fill('Golf');
+await page.locator('.quickadd input').press('Enter');
+await page.waitForTimeout(150);
 await page.locator('.seg').first().locator('button').first().click(); // back to flat
 
 // --- keyboard reorder (Alt+arrows) ---------------------------------------

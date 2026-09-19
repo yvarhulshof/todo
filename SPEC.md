@@ -20,7 +20,7 @@ Single JSON document. `schemaVersion` gates all future migrations.
 {
   "schemaVersion": 1,
   "lists":  [{ "id": "l_a1", "name": "Work", "order": 1024, "createdAt": "..." }],
-  "labels": [{ "id": "b_a1", "name": "urgent", "color": "#e5484d" }],
+  "labels": [{ "id": "b_a1", "name": "urgent", "color": "#e5484d", "order": 1024 }],
   "todos": [{
     "id": "t_a1",
     "title": "Review Q3 deck",
@@ -52,9 +52,14 @@ same list. The rule:
 - **Manual order is the stored truth.** Grouping and sorting are *view modes* layered
   over it; switching view modes never mutates `order`.
 - **Grouped by label:** dragging *within* a group reorders. Dragging *across* groups
-  reassigns `labelId` — that's how you relabel, no menu needed.
+  reassigns `labelId` — that's how you relabel, no menu needed. The label groups
+  themselves also have a stored `order`, reordered by dragging a group header.
 - **Sorted by due date:** drag-to-reorder is disabled, and the drag handle is hidden
   rather than left there to fail silently. Cross-list drags still work.
+- **Smart views (Today/Upcoming/Overdue) default to due-date sort but are not
+  locked to it.** Switching one to Manual enables drag-to-reorder exactly like any
+  other view, and that manual order overrides the date order for display. Dragging
+  still never rewrites `dueDate` — order and due date stay independent fields.
 - Default view is manual order, ungrouped.
 
 ### 3.2 The two "Today"s
@@ -102,8 +107,8 @@ Write-through is debounced ~500ms. A visible save indicator shows synced / savin
   `24/12`, and `#label`. Parsed tokens are shown as chips before commit so it's never
   a surprise.
 - Optional one-line note per todo
-- Labels: create, rename, recolour, delete (delete clears the label off its todos,
-  never deletes todos)
+- Labels: create, rename, recolour, reorder (drag group headers in the by-label
+  view), delete (delete clears the label off its todos, never deletes todos)
 - Lists: create, rename, reorder, delete (delete asks where the todos go)
 - Due dates, with overdue in red and today in amber
 - Smart views: Today, Upcoming, Overdue
