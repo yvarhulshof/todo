@@ -115,7 +115,7 @@ export function renderSidebar(container, app) {
     );
   }
 
-  for (const label of data.labels) {
+  for (const label of [...data.labels].sort(byOrder)) {
     const node = navItem({
       label: label.name,
       dot: labelHex(data, label.id),

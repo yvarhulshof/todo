@@ -3,11 +3,11 @@ import { Store } from './store.js';
 import { Persistence, exportBlob, parseImport, supportsFileSystem, listSnapshots } from './persist.js';
 import {
   addTodo, updateTodo, deleteTodo, setCompleted, moveTodo,
-  addList, renameList, deleteList, addLabel, updateLabel, deleteLabel,
+  addList, renameList, deleteList, addLabel, updateLabel, deleteLabel, moveLabel,
 } from './model.js';
 import { today } from './dates.js';
 import {
-  selectView, parseViewKey, viewKey, viewTitle, getOptions, canReorder, isSmart,
+  selectView, parseViewKey, viewKey, viewTitle, getOptions, canReorder,
   targetListId, targetDueDate, targetLabelId,
 } from './query.js';
 import { parseQuickAdd } from './quickadd.js';
@@ -214,6 +214,10 @@ const app = {
     showToast(`Deleted label "${label.name}"`, { actionLabel: 'Undo', onAction: () => store.undo() });
   },
 
+  reorderLabel(draggedId, beforeId) {
+    store.commit((d) => moveLabel(d, draggedId, beforeId), { undoLabel: 'Reorder labels' });
+  },
+
   // --- storage -------------------------------------------------------
   openStorageMenu: () => storageMenu(),
 
@@ -387,10 +391,9 @@ function updateTopbar(selection) {
 
   sortButtons[0].setAttribute('aria-pressed', String(options.sort === 'manual'));
   sortButtons[1].setAttribute('aria-pressed', String(options.sort === 'due'));
-  sortButtons[0].disabled = isSmart(view);
-  sortButtons[0].title = isSmart(view)
-    ? 'Computed views are always sorted by date'
-    : 'Drag to arrange';
+  // Smart views default to date sort, but can be switched to Manual to drag
+  // an override order — that never rewrites `dueDate`.
+  sortButtons[0].title = 'Drag to arrange';
   sortButtons[1].setAttribute('aria-pressed', String(options.sort === 'due'));
 }
 
@@ -680,7 +683,7 @@ function renderMain() {
 
 function render() {
   // Re-rendering mid-drag would destroy the node being dragged.
-  if (dragState.todoId) return;
+  if (dragState.todoId || dragState.labelId) return;
   if (searchInput.value !== store.ui.search) searchInput.value = store.ui.search;
   renderSidebar(sidebarNav, app);
   renderSaveStatus(saveStatusHost, app);
@@ -697,6 +700,7 @@ store.subscribe(render);
 // are suppressed for the duration of the drag. Repaint once it is over.
 document.addEventListener('dragend', () => {
   dragState.todoId = null;
+  dragState.labelId = null;
   render();
 });
 persistence.addEventListener('status', () => renderSaveStatus(saveStatusHost, app));

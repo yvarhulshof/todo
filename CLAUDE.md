@@ -49,11 +49,15 @@ corporate acceptable-use policy — it is the whole point, not a preference.
 from now with nothing installed. Dev-only tools are fine.
 
 **Manual order is the stored truth.** Grouping and sorting are view layers.
-Switching a view mode must never mutate `order`.
+Switching a view mode must never mutate `order`. Label groups have their own
+stored `order` too, changed by dragging a group header — separate from any
+todo's own `order`.
 
-**Date-sorted views cannot be reordered by hand.** The drag handle hides rather
-than failing silently. Dragging must *not* rewrite due dates — that was
-considered and rejected as too clever.
+**Any view can be dragged by hand once switched to Manual sort — including
+Today, Upcoming and Overdue.** The drag handle only hides when a view is
+currently sorted by date; it never fails silently. Dragging must *not* rewrite
+due dates: order and due date are independent fields, even when a smart view
+is displayed in manual order.
 
 **Quick-add only parses date tokens at the end of the input.** `Review deck fri`
 sets a date; `Book the friday room` stays intact. Parsing anywhere would be more

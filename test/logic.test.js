@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 
 import {
   createInitialData, addTodo, updateTodo, deleteTodo, setCompleted, moveTodo,
-  addList, deleteList, addLabel, deleteLabel, orderBetween, normalizeOrder,
+  addList, deleteList, addLabel, deleteLabel, moveLabel, orderBetween, normalizeOrder,
   needsNormalize, byOrder, migrate, ORDER_GAP,
 } from '../src/model.js';
 import { parseQuickAdd } from '../src/quickadd.js';
-import { selectView, counts, canReorder, getOptions } from '../src/query.js';
+import { selectView, counts, canReorder, getOptions, viewKey } from '../src/query.js';
 import { addDays, formatDue, daysFromToday, isValidISODate, nextWeekday } from '../src/dates.js';
 import { saveStatusInfo } from '../src/ui/sidebar.js';
 
@@ -272,6 +272,36 @@ test('adding a duplicate label returns the existing one', () => {
   assert.equal(data.labels.length, 1);
 });
 
+test('moveLabel places a label before its target, mirroring moveList', () => {
+  const { data } = seed();
+  const a = addLabel(data, 'A');
+  addLabel(data, 'B');
+  const c = addLabel(data, 'C');
+  moveLabel(data, c.id, a.id);
+  assert.deepEqual([...data.labels].sort(byOrder).map((l) => l.name), ['C', 'A', 'B']);
+});
+
+test('moveLabel with beforeId null sends the label to the end', () => {
+  const { data } = seed();
+  const a = addLabel(data, 'A');
+  addLabel(data, 'B');
+  moveLabel(data, a.id, null);
+  assert.deepEqual([...data.labels].sort(byOrder).map((l) => l.name), ['B', 'A']);
+});
+
+test('label groups render in stored order, not creation order', () => {
+  const { data, inbox } = seed();
+  const zeta = addLabel(data, 'Zeta');
+  const alpha = addLabel(data, 'Alpha');
+  moveLabel(data, alpha.id, zeta.id);
+  addTodo(data, { title: 'T1', listId: inbox, labelId: zeta.id });
+  addTodo(data, { title: 'T2', listId: inbox, labelId: alpha.id });
+  data.prefs.viewOptions[`list:${inbox}`] = { group: 'label' };
+
+  const view = selectView(data, { kind: 'list', id: inbox }, { now: NOW });
+  assert.deepEqual(view.groups.map((g) => g.name), ['Alpha', 'Zeta', 'No label']);
+});
+
 // -------------------------------------------------------------------- views
 
 test('All shows todos from every list', () => {
@@ -302,14 +332,34 @@ test('Today includes overdue, Overdue excludes today, Upcoming is strictly futur
   assert.deepEqual(upcoming.open.map((t) => t.title), ['Soon']);
 });
 
-test('smart views sort by date and forbid manual reordering', () => {
+test('smart views default to due-date sort, but Manual re-enables dragging there', () => {
   const view = { kind: 'smart', id: 'today' };
   const { data } = seed();
   const options = getOptions(data, view);
   assert.equal(options.sort, 'due');
   assert.equal(canReorder(view, options), false);
+  assert.equal(canReorder(view, { ...options, sort: 'manual' }), true);
   assert.equal(canReorder({ kind: 'list', id: 'l1' }, { sort: 'manual' }), true);
   assert.equal(canReorder({ kind: 'list', id: 'l1' }, { sort: 'due' }), false);
+});
+
+test('manual reorder in a smart view overrides display order without touching due dates', () => {
+  const { data, inbox } = seed();
+  const a = addTodo(data, { title: 'A', listId: inbox, dueDate: addDays(NOW, -2) });
+  const b = addTodo(data, { title: 'B', listId: inbox, dueDate: NOW });
+  const view = { kind: 'smart', id: 'today' };
+  data.prefs.viewOptions[viewKey(view)] = { sort: 'manual' };
+
+  const before = selectView(data, view, { now: NOW });
+  assert.deepEqual(before.open.map((t) => t.title), ['A', 'B']);
+
+  const ids = before.open.map((t) => t.id);
+  moveTodo(data, b.id, { beforeId: a.id, orderedIds: ids });
+
+  const after = selectView(data, view, { now: NOW });
+  assert.deepEqual(after.open.map((t) => t.title), ['B', 'A']);
+  assert.equal(a.dueDate, addDays(NOW, -2));
+  assert.equal(b.dueDate, NOW);
 });
 
 test('date sort puts undated todos last without losing their manual order', () => {
@@ -408,6 +458,17 @@ test('migrate rejects documents that are not todo files at all', () => {
 test('migrate always leaves at least one list', () => {
   const data = migrate({ lists: [], todos: [] });
   assert.equal(data.lists.length, 1);
+});
+
+test('migrate backfills order onto labels from an old file, keeping their sequence', () => {
+  const data = migrate({
+    lists: [{ id: 'l1', name: 'Inbox', order: 1024 }],
+    labels: [{ id: 'b1', name: 'urgent', color: 'red' }, { id: 'b2', name: 'later', color: 'blue' }],
+    todos: [],
+  });
+  assert.ok(Number.isFinite(data.labels[0].order));
+  assert.ok(Number.isFinite(data.labels[1].order));
+  assert.ok(data.labels[0].order < data.labels[1].order);
 });
 
 test('deleteTodo removes exactly one todo', () => {

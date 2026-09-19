@@ -551,6 +551,24 @@ button {
   outline: 1.5px dashed var(--accent);
 }
 
+.group__grip {
+  width: 14px;
+  align-self: center;
+  color: var(--text-faint);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity var(--speed) var(--ease);
+  display: grid;
+  place-items: center;
+}
+
+.group__head:hover .group__grip { opacity: 1; }
+.group__grip:active { cursor: grabbing; }
+
+.group__head.is-dragging { opacity: 0.4; }
+.group__head.is-drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+.group__head.is-drop-after  { box-shadow: inset 0 -2px 0 var(--accent); }
+
 .todo-list { list-style: none; margin: 0; padding: 0; }
 
 .todo {

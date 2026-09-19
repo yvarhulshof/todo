@@ -52,9 +52,13 @@ export function getOptions(data, view) {
   return { ...defaultOptions(view), ...(data.prefs.viewOptions?.[viewKey(view)] || {}) };
 }
 
-/** Dragging to reorder is only meaningful when manual order is what's shown. */
+/**
+ * Dragging to reorder is only meaningful when manual order is what's shown —
+ * including in a smart view once it has been switched to Manual sort. That
+ * never rewrites `dueDate`: order and due date are independent fields.
+ */
 export function canReorder(view, options) {
-  return !isSmart(view) && options.sort === 'manual';
+  return options.sort === 'manual';
 }
 
 /** The list a newly added todo lands in for this view. */
@@ -138,7 +142,8 @@ export function selectView(data, view, { search = '', now = today() } = {}) {
       if (todo.labelId && byLabel.has(todo.labelId)) byLabel.get(todo.labelId).push(todo);
       else unlabelled.push(todo);
     }
-    groups = data.labels
+    groups = [...data.labels]
+      .sort(byOrder)
       .map((label) => ({
         id: label.id,
         name: label.name,
