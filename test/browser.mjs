@@ -567,6 +567,56 @@ console.log('\n# label group reorder');
     JSON.stringify(headsAfterReload));
 }
 
+console.log('\n# drop at bottom of a label group');
+{
+  // https://github.com/yvarhulshof/todo/issues/15 — the last row in a group
+  // has no "next" row to adopt list/label context from, so dropping below it
+  // used to silently do nothing when it should relabel like any other drop
+  // inside the section.
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('.quickadd input');
+
+  const add = async (text) => {
+    await page.locator('.quickadd input').fill(text);
+    await page.locator('.quickadd input').press('Enter');
+    await page.waitForTimeout(90);
+  };
+  await add('Task A #urgent');
+  await add('Task B #urgent');
+  await add('Task C');
+
+  await page.locator('.seg').first().locator('button').nth(1).click(); // group by label
+  await page.waitForTimeout(180);
+
+  await page.evaluate(() => {
+    const row = [...document.querySelectorAll('.todo[data-id]')]
+      .find((r) => r.querySelector('.todo__title')?.textContent === 'Task C');
+    const group = [...document.querySelectorAll('.group')]
+      .find((g) => g.querySelector('.group__head')?.textContent.includes('urgent'));
+    // "Task B" is the last row inside the urgent group — drop just past its
+    // bottom edge, same as dropping into the empty space below the section.
+    const last = [...group.querySelectorAll('.todo[data-id]')].at(-1);
+    const rect = last.getBoundingClientRect();
+    const dt = new DataTransfer();
+    row.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true }));
+    const opts = {
+      dataTransfer: dt, bubbles: true, cancelable: true,
+      clientY: rect.bottom - 3, clientX: rect.left + 40,
+    };
+    last.dispatchEvent(new DragEvent('dragover', opts));
+    last.dispatchEvent(new DragEvent('drop', opts));
+    row.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles: true }));
+  });
+  await page.waitForTimeout(200);
+
+  const urgentTitles = await page.locator('.group').filter({ hasText: 'urgent' }).locator('.todo__title').allTextContents();
+  check('drag to the bottom of a label group relabels', urgentTitles.includes('Task C'),
+    JSON.stringify(urgentTitles));
+  check('drag to the bottom of a label group keeps it last in that group',
+    urgentTitles.at(-1) === 'Task C', JSON.stringify(urgentTitles));
+}
+
 console.log('\n# focus and selection');
 {
   await page.evaluate(() => localStorage.clear());

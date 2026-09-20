@@ -93,10 +93,13 @@ const app = {
     showToast(`Deleted "${truncate(title)}"`, { actionLabel: 'Undo', onAction: () => store.undo() });
   },
 
-  reorder(draggedId, beforeId) {
+  reorder(draggedId, beforeId, contextId) {
     const selection = currentSelection();
     const orderedIds = selection.open.map((t) => t.id);
-    const target = beforeId ? store.data.todos.find((t) => t.id === beforeId) : null;
+    // `contextId` is the row the pointer is actually over — used to adopt
+    // list/label even when dropping past the last row of a group, where
+    // there is no `beforeId` to look up.
+    const target = store.data.todos.find((t) => t.id === (contextId ?? beforeId));
     // Dropping onto a row in a different list adopts that list.
     const listId = target ? target.listId : null;
     const patch = { beforeId, orderedIds, listId };
