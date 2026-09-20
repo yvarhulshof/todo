@@ -191,8 +191,8 @@ function buildRow(app, todo, { nextId, reorderable, showListTag, showLabel = tru
   // Today from views like Upcoming/Overdue where `reorderable` is false.
   makeDraggable(row, todo.id, !completed);
   if (reorderable) {
-    makeReorderTarget(row, todo.id, nextId, (draggedId, beforeId) =>
-      app.reorder(draggedId, beforeId));
+    makeReorderTarget(row, todo.id, nextId, (draggedId, beforeId, contextId) =>
+      app.reorder(draggedId, beforeId, contextId));
   }
 
   return row;

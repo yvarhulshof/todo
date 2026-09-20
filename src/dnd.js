@@ -44,9 +44,12 @@ export function makeDraggable(node, todoId, enabled) {
 }
 
 /**
- * A todo row as a reorder target. `onDrop(draggedId, beforeId)` receives the
- * id the dragged todo should be placed before, or null for "after this one,
- * at the end".
+ * A todo row as a reorder target. `onDrop(draggedId, beforeId, contextId)`
+ * receives the id the dragged todo should be placed before (or null for
+ * "after this one, at the end"), plus `contextId` — the id of the row the
+ * pointer is actually over. `beforeId` alone is not enough to know which
+ * list/label to adopt when dropping past the last row of a group, since
+ * "at the end" has no `beforeId` to look up.
  */
 export function makeReorderTarget(node, todoId, nextId, onDrop) {
   node.addEventListener('dragover', (event) => {
@@ -74,7 +77,7 @@ export function makeReorderTarget(node, todoId, nextId, onDrop) {
     // is in flight, and `dragend` does not fire until after the drop handler.
     dragState.todoId = null;
     clearMarks();
-    onDrop(dragged, above ? todoId : nextId);
+    onDrop(dragged, above ? todoId : nextId, todoId);
   });
 }
 
